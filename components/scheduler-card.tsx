@@ -1,0 +1,336 @@
+"use client"
+
+import { useEffect, useMemo, useState } from "react"
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
+import { Leaf, Zap, Clock, PoundSterling, Scale } from "lucide-react"
+import type { ForecastPoint } from "@/lib/types"
+import {
+  rankWindows,
+  windowSavings,
+  baselineWindow,
+  type SignalPoint,
+  type ScheduleObjective,
+} from "@/lib/schedule"
+import { getIntensityIndex, getIntensityColor } from "@/lib/types"
+import { useTechnicalDetail } from "@/components/app-shell"
+import { londonTime } from "@/lib/display"
+
+interface SchedulerCardProps {
+  forecasts: ForecastPoint[]
+  onWindowChange?: (window: { start: string; end: string } | null) => void
+  className?: string
+  demo?: boolean
+}
+
+const PRESETS = [
+  { label: "Electric car", power: 7 },
+  { label: "Washing machine", power: 2 },
+  { label: "Dishwasher", power: 1.5 },
+  { label: "Heat pump", power: 3 },
+]
+
+const DURATIONS = [1, 2, 3, 4]
+const DEADLINES = [
+  { label: "12 h", hours: 12 },
+  { label: "24 h", hours: 24 },
+  { label: "48 h", hours: 48 },
+]
+
+const OBJECTIVES: { key: ScheduleObjective; label: string; icon: typeof Leaf }[] = [
+  { key: "carbon", label: "Cleanest", icon: Leaf },
+  { key: "cost", label: "Cheapest", icon: PoundSterling },
+  { key: "balanced", label: "Balanced", icon: Scale },
+]
+
+export function SchedulerCard({ forecasts, onWindowChange, className, demo = false }: SchedulerCardProps) {
+  const technical = useTechnicalDetail()
+  const [power, setPower] = useState(7)
+  const [durationH, setDurationH] = useState(3)
+  const [withinHours, setWithinHours] = useState(24)
+  const [objective, setObjective] = useState<ScheduleObjective>("carbon")
+
+  // A minute tick so the deadline (and hence the ranking) tracks wall-clock time
+  // even when SWR pauses polling (e.g. a backgrounded tab) — otherwise the
+  // recommended window can quietly age into the past.
+  const [nowMs, setNowMs] = useState(() => Date.now())
+  useEffect(() => {
+    const id = setInterval(() => setNowMs(Date.now()), 60_000)
+    return () => clearInterval(id)
+  }, [])
+
+  const signal: SignalPoint[] = useMemo(
+    () =>
+      forecasts.filter(f => new Date(f.target_time).getTime() >= nowMs).map((f) => ({
+        target_time: f.target_time,
+        intensity: f.predicted_intensity,
+        marginal: f.marginal,
+        price: f.price,
+      })),
+    [forecasts, nowMs],
+  )
+
+  const priced = signal.some((p) => p.price != null)
+  useEffect(() => { if (!priced && objective !== "carbon") setObjective("carbon") }, [priced, objective])
+
+  const { best, savings, alternatives } = useMemo(() => {
+    const durationHalfHours = Math.round(durationH * 2)
+    const deadline = new Date(nowMs + withinHours * 3_600_000).toISOString()
+    const ranked = rankWindows(signal, { durationHalfHours, deadline, objective })
+    // Shared "run now" definition from lib/schedule.ts — same one the API uses.
+    const baseline = baselineWindow(signal, durationHalfHours)
+    const top = ranked[0]
+    return {
+      best: top,
+      savings: top && baseline ? windowSavings(power, top, baseline) : null,
+      alternatives: ranked.slice(1, 3),
+    }
+  }, [signal, power, durationH, withinHours, objective, nowMs])
+
+  // Lift the chosen window so the forecast chart can highlight it.
+  useEffect(() => {
+    onWindowChange?.(best ? { start: best.start, end: best.end } : null)
+  }, [best?.start, best?.end, onWindowChange])
+
+  return (
+    <Card className={className}>
+      <CardHeader>
+        <CardTitle className="flex items-center gap-2">
+          <Leaf className="h-5 w-5 text-primary" />
+          Find a better time to use electricity
+        </CardTitle>
+        <CardDescription>
+          Choose an appliance and how long it needs. We’ll compare available times in the next {withinHours} hours.
+        </CardDescription>
+      </CardHeader>
+
+      <CardContent className="space-y-4">
+        {demo && <p className="soft-note warning">Example planner only. These times use demonstration data, not a forecast you should act on.</p>}
+        {/* Objective tabs */}
+        <div className="grid grid-cols-3 gap-1 rounded-lg bg-muted p-1">
+          {OBJECTIVES.map((o) => {
+            const disabled = o.key !== "carbon" && !priced
+            const active = objective === o.key
+            return (
+              <button
+                key={o.key}
+                type="button"
+                disabled={disabled}
+                aria-pressed={active}
+                onClick={() => setObjective(o.key)}
+                className={`flex items-center justify-center gap-1.5 rounded-md px-2 py-1.5 text-sm font-medium transition-colors ${
+                  active
+                    ? "bg-background shadow-sm text-foreground"
+                    : "text-muted-foreground hover:text-foreground"
+                } ${disabled ? "cursor-not-allowed opacity-40" : ""}`}
+                title={disabled ? "Needs price data (Octopus Agile)" : undefined}
+              >
+                <o.icon className="h-4 w-4" />
+                {o.label}
+              </button>
+            )
+          })}
+        </div>
+
+        <p className="text-sm text-muted-foreground">{!priced ? "Price comparisons are unavailable until tariff prices are loaded." : objective === "balanced" ? "Balanced gives equal weight to cleaner electricity and lower prices. Only fully priced times can be compared." : "Prices use the available Octopus Agile tariff. Carbon levels describe the grid average."}</p>
+        {/* Inputs */}
+        <div className="grid gap-3 sm:grid-cols-3">
+          <fieldset className="min-w-0 space-y-2">
+            <legend className="text-sm text-muted-foreground mb-2">1. Choose an appliance</legend>
+            <div className="flex flex-wrap gap-1">
+              {PRESETS.map((p) => (
+                <button
+                  key={p.label}
+                  type="button"
+                  onClick={() => setPower(p.power)}
+                  aria-pressed={power === p.power}
+                  className={`rounded-md border px-2 py-2 text-sm transition-colors ${
+                    power === p.power
+                      ? "border-primary bg-primary/10 text-foreground"
+                      : "border-border text-muted-foreground hover:bg-muted"
+                  }`}
+                >
+                  {p.label}
+                </button>
+              ))}
+            </div>
+            <input
+              type="number"
+              aria-label="Appliance power in kilowatts"
+              min={0.1}
+              step={0.5}
+              value={power}
+              onChange={(e) => setPower(Math.max(0.1, Number(e.target.value) || 0))}
+              className="w-full rounded-md border border-border bg-background px-2 py-1 text-sm"
+            />
+            <span className="text-xs text-muted-foreground">Approximate power (kW). Adjust for your appliance.</span>
+          </fieldset>
+
+          <fieldset className="min-w-0 space-y-2">
+            <legend className="text-sm text-muted-foreground mb-2">2. How long does it need?</legend>
+            <div className="flex gap-1">
+              {DURATIONS.map((d) => (
+                <button
+                  key={d}
+                  type="button"
+                  onClick={() => setDurationH(d)}
+                  aria-pressed={durationH === d}
+                  className={`flex-1 rounded-md border px-2 py-1.5 text-sm transition-colors ${
+                    durationH === d
+                      ? "border-primary bg-primary/10 text-foreground"
+                      : "border-border text-muted-foreground hover:bg-muted"
+                  }`}
+                >
+                  {d}h
+                </button>
+              ))}
+            </div>
+          </fieldset>
+
+          <fieldset className="min-w-0 space-y-2">
+            <legend className="text-sm text-muted-foreground mb-2">3. Finish within</legend>
+            <div className="flex gap-1">
+              {DEADLINES.map((d) => (
+                <button
+                  key={d.hours}
+                  type="button"
+                  onClick={() => setWithinHours(d.hours)}
+                  aria-pressed={withinHours === d.hours}
+                  className={`flex-1 rounded-md border px-2 py-1.5 text-sm transition-colors ${
+                    withinHours === d.hours
+                      ? "border-primary bg-primary/10 text-foreground"
+                      : "border-border text-muted-foreground hover:bg-muted"
+                  }`}
+                >
+                  {d.label}
+                </button>
+              ))}
+            </div>
+          </fieldset>
+        </div>
+
+        {/* Result */}
+        {best ? (
+          <Result
+            start={best.start}
+            end={best.end}
+            avgIntensity={best.avgIntensity}
+            avgPrice={best.avgPrice}
+            savings={savings}
+            hasMarginal={best.avgMarginal != null}
+            technical={technical}
+            demo={demo}
+          />
+        ) : (
+          <p className="rounded-lg bg-muted/50 p-4 text-sm text-muted-foreground">
+            No complete time period fits yet. Try a shorter run, extend the deadline, or refresh the forecast.
+          </p>
+        )}
+
+        {/* Alternatives */}
+        {alternatives.length > 0 && (
+          <div className="space-y-1">
+            <div className="text-xs font-medium text-muted-foreground">Other good windows</div>
+            {alternatives.map((w) => (
+              <div
+                key={w.start}
+                className="flex flex-wrap gap-2 items-center justify-between rounded-md bg-muted/40 px-3 py-1.5 text-sm"
+              >
+                <span className="flex items-center gap-2 text-muted-foreground">
+                  <Clock className="h-3.5 w-3.5" />
+                  {londonTime(w.start)} – {londonTime(w.end)}
+                </span>
+                <span className="tabular-nums text-muted-foreground">
+                  {Math.round(w.avgIntensity)} gCO₂/kWh{w.avgPrice != null ? ` · ${w.avgPrice.toFixed(1)} p/kWh` : ""}
+                </span>
+              </div>
+            ))}
+          </div>
+        )}
+
+        <p className="border-t pt-3 text-xs text-muted-foreground">
+          Estimates assume steady appliance power. Carbon figures use the grid average, not a measured reduction caused by your action. Prices are for the available Agile tariff, not necessarily yours. Follow appliance safety guidance; don’t delay essential use.
+        </p>
+      </CardContent>
+    </Card>
+  )
+}
+
+function Result({
+  start,
+  end,
+  avgIntensity,
+  avgPrice,
+  savings,
+  hasMarginal,
+  technical,
+  demo,
+}: {
+  start: string
+  end: string
+  avgIntensity: number
+  avgPrice: number | null
+  savings: { co2KgAverage: number; co2KgMarginal: number | null; costGbp: number | null } | null
+  hasMarginal: boolean
+  technical: boolean
+  demo: boolean
+}) {
+  const index = getIntensityIndex(avgIntensity)
+  const color = getIntensityColor(index)
+  const avg = savings?.co2KgAverage ?? 0
+  const marg = savings?.co2KgMarginal ?? null
+  const cost = savings?.costGbp ?? null
+  const showSavings = Math.abs(avg) > 0.001 || (cost != null && Math.abs(cost) > 0.001)
+
+  return (
+    <div className="rounded-lg bg-primary/10 p-4 ring-1 ring-primary/20">
+      <div className="flex items-start justify-between gap-3">
+        <div>
+          <div className="flex items-center gap-2 text-xs font-medium uppercase tracking-wide text-primary">
+            <Zap className="h-3.5 w-3.5" />
+            {demo ? "Example time" : "Suggested time"}
+          </div>
+          <div className="mt-1 text-lg font-bold">
+            {londonTime(start)} – {londonTime(end)}
+          </div>
+          <div className="mt-1 flex flex-wrap items-center gap-2 text-sm text-muted-foreground">
+            <span className="inline-flex items-center gap-1.5">
+              <span className="h-2.5 w-2.5 rounded-full" style={{ backgroundColor: color }} />
+              {Math.round(avgIntensity)} gCO₂ per kWh
+            </span>
+            {avgPrice != null && <span>· {avgPrice.toFixed(1)} p/kWh on average</span>}
+          </div>
+        </div>
+      </div>
+
+      {showSavings && (
+        <div className="mt-3 grid gap-1.5 border-t border-primary/15 pt-3 text-sm">
+          {Math.abs(avg) > 0.001 && (
+            <div className="flex items-baseline justify-between gap-2">
+              <span className="text-muted-foreground">Estimated carbon difference*</span>
+              <span className="font-semibold tabular-nums">
+                {avg > 0 ? "−" : "+"}{Math.abs(avg).toFixed(2)} kg CO₂
+              </span>
+            </div>
+          )}
+          {technical && hasMarginal && marg != null && (
+            <div className="flex items-baseline justify-between gap-2">
+              <span className="text-muted-foreground">Rule-based marginal difference*</span>
+              <span className="font-semibold tabular-nums">
+                {Math.abs(marg) <= 0.001 ? "≈ 0 kg CO₂" : `${marg > 0 ? "−" : "+"}${Math.abs(marg).toFixed(2)} kg CO₂`}
+              </span>
+            </div>
+          )}
+          {cost != null && Math.abs(cost) > 0.001 && (
+            <div className="flex items-baseline justify-between gap-2">
+              <span className="text-muted-foreground">Estimated price difference*</span>
+              <span className="font-semibold tabular-nums">
+                {cost > 0 ? `−£${cost.toFixed(2)}` : `+£${(-cost).toFixed(2)}`}
+              </span>
+            </div>
+          )}
+        </div>
+      )}
+      <p className="text-xs text-muted-foreground mt-3">London time. *Compared with the earliest available complete run, which may not start immediately. These are estimates, not guaranteed savings.</p>
+    </div>
+  )
+}

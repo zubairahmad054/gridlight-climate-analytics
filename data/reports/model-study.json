@@ -1,0 +1,667 @@
+{
+  "schema_version": 1,
+  "study_id": "controlled-2026-09-09",
+  "generated_at": "2026-09-08T23:38:33.562157+00:00",
+  "status": "complete",
+  "winner": "boosting-weather-blend",
+  "selection": "Lowest development MAE across all 96 leads; lexical model ID breaks ties. Baselines are eligible.",
+  "development_origins": [
+    "2026-07-27T03:30:00+00:00",
+    "2026-07-29T03:30:00+00:00",
+    "2026-07-31T03:30:00+00:00",
+    "2026-08-02T03:30:00+00:00",
+    "2026-08-04T03:30:00+00:00",
+    "2026-08-06T03:30:00+00:00",
+    "2026-08-08T03:30:00+00:00"
+  ],
+  "final_origins": [
+    "2026-09-05T03:30:00Z"
+  ],
+  "candidates": [
+    {
+      "id": "ridge-calendar",
+      "estimator": "ridge",
+      "feature_columns": [
+        "hour_sin",
+        "hour_cos",
+        "dow_sin",
+        "dow_cos",
+        "month_sin",
+        "month_cos",
+        "is_weekend"
+      ]
+    },
+    {
+      "id": "ridge-lags",
+      "estimator": "ridge",
+      "feature_columns": [
+        "hour_sin",
+        "hour_cos",
+        "dow_sin",
+        "dow_cos",
+        "month_sin",
+        "month_cos",
+        "is_weekend",
+        "lag_48",
+        "lag_336"
+      ]
+    },
+    {
+      "id": "ridge-full",
+      "estimator": "ridge"
+    },
+    {
+      "id": "ours-v2"
+    },
+    {
+      "id": "boosting-shallow",
+      "model_params": {
+        "n_estimators": 200,
+        "max_depth": 2,
+        "learning_rate": 0.05
+      }
+    },
+    {
+      "id": "boosting-london",
+      "calendar_timezone": "Europe/London"
+    },
+    {
+      "id": "boosting-weather-blend",
+      "weather_mode": "blend"
+    },
+    {
+      "id": "boosting-weather-locations",
+      "weather_mode": "locations",
+      "feature_columns": [
+        "hour_sin",
+        "hour_cos",
+        "dow_sin",
+        "dow_cos",
+        "month_sin",
+        "month_cos",
+        "is_weekend",
+        "wind",
+        "solar",
+        "temp",
+        "lag_48",
+        "lag_336",
+        "wx_scotland_wind",
+        "wx_scotland_solar",
+        "wx_scotland_temp",
+        "wx_north_sea_wind",
+        "wx_north_sea_solar",
+        "wx_north_sea_temp"
+      ]
+    },
+    {
+      "id": "boosting-direct",
+      "strategy": "direct",
+      "model_params": {
+        "n_estimators": 200,
+        "max_depth": 2,
+        "learning_rate": 0.05
+      }
+    }
+  ],
+  "assumptions": [
+    "Latest-vintage actuals assumed available after 60 minutes",
+    "Training reanalysis embargoed seven days; revisions not reconstructed",
+    "Archived global weather run assumed available eight hours after initialisation",
+    "Overlapping folds are correlated; sample counts are forecast-target pairs",
+    "Final dates were reserved before this study; their descriptive analytics have already been seen.",
+    "Final score is a one-window retrospective check, not a prospective or year-round claim.",
+    "Multi-site blend uses equal weights, not installed capacity; points are geographic hypotheses.",
+    "Direct model pools lead times with issue-time lags; training weather is embargoed reanalysis.",
+    "No NESO comparison without valid forecast vintages. No production promotion."
+  ],
+  "development": [
+    {
+      "model": "boosting-direct",
+      "horizon": "0-6h",
+      "n": 84,
+      "mae": 15.919164079566082,
+      "rmse": 19.86714739746918,
+      "bias": 7.117329369941801
+    },
+    {
+      "model": "boosting-direct",
+      "horizon": "6-24h",
+      "n": 252,
+      "mae": 32.87743214590022,
+      "rmse": 39.53981338568662,
+      "bias": -16.124050742293218
+    },
+    {
+      "model": "boosting-direct",
+      "horizon": "24-48h",
+      "n": 336,
+      "mae": 26.735380066485224,
+      "rmse": 32.905471716998825,
+      "bias": -1.952616831039219
+    },
+    {
+      "model": "boosting-direct",
+      "horizon": "0-48h",
+      "n": 672,
+      "mae": 27.686622597900957,
+      "rmse": 34.30738686695325,
+      "bias": -6.1331612726368405
+    },
+    {
+      "model": "boosting-london",
+      "horizon": "0-6h",
+      "n": 84,
+      "mae": 14.421770669467454,
+      "rmse": 18.84492247709246,
+      "bias": 1.9386464013841935
+    },
+    {
+      "model": "boosting-london",
+      "horizon": "6-24h",
+      "n": 252,
+      "mae": 33.948816792168515,
+      "rmse": 41.058792527239675,
+      "bias": -19.70479135210493
+    },
+    {
+      "model": "boosting-london",
+      "horizon": "24-48h",
+      "n": 336,
+      "mae": 27.294604183297594,
+      "rmse": 35.992899624700264,
+      "bias": -7.951361713322228
+    },
+    {
+      "model": "boosting-london",
+      "horizon": "0-48h",
+      "n": 672,
+      "mae": 28.18082972239542,
+      "rmse": 36.39120726241325,
+      "bias": -11.12264681352744
+    },
+    {
+      "model": "boosting-shallow",
+      "horizon": "0-6h",
+      "n": 84,
+      "mae": 15.547387730187282,
+      "rmse": 20.28467309396797,
+      "bias": -0.04922663294380517
+    },
+    {
+      "model": "boosting-shallow",
+      "horizon": "6-24h",
+      "n": 252,
+      "mae": 34.43696783076666,
+      "rmse": 41.51277550433695,
+      "bias": -19.30990363737035
+    },
+    {
+      "model": "boosting-shallow",
+      "horizon": "24-48h",
+      "n": 336,
+      "mae": 28.56712006329041,
+      "rmse": 35.88551323576707,
+      "bias": -5.804609606832786
+    },
+    {
+      "model": "boosting-shallow",
+      "horizon": "0-48h",
+      "n": 672,
+      "mae": 29.14084643445612,
+      "rmse": 36.62731186138159,
+      "bias": -10.149671996548252
+    },
+    {
+      "model": "boosting-weather-blend",
+      "horizon": "0-6h",
+      "n": 84,
+      "mae": 20.46491454666936,
+      "rmse": 26.411055431070086,
+      "bias": 8.182109004116999
+    },
+    {
+      "model": "boosting-weather-blend",
+      "horizon": "6-24h",
+      "n": 252,
+      "mae": 20.33934095076891,
+      "rmse": 26.77948764452711,
+      "bias": -1.1926842169314604
+    },
+    {
+      "model": "boosting-weather-blend",
+      "horizon": "24-48h",
+      "n": 336,
+      "mae": 26.057024098386723,
+      "rmse": 33.61322898219714,
+      "bias": -4.708575062229907
+    },
+    {
+      "model": "boosting-weather-blend",
+      "horizon": "0-48h",
+      "n": 672,
+      "mae": 23.21387922406537,
+      "rmse": 30.3487301524538,
+      "bias": -1.778780486949626
+    },
+    {
+      "model": "boosting-weather-locations",
+      "horizon": "0-6h",
+      "n": 84,
+      "mae": 16.520268493594966,
+      "rmse": 20.896523978350576,
+      "bias": 10.925767365430657
+    },
+    {
+      "model": "boosting-weather-locations",
+      "horizon": "6-24h",
+      "n": 252,
+      "mae": 23.763660278260556,
+      "rmse": 28.786838037657912,
+      "bias": -8.915065906303024
+    },
+    {
+      "model": "boosting-weather-locations",
+      "horizon": "24-48h",
+      "n": 336,
+      "mae": 27.985995171069003,
+      "rmse": 36.04315394632994,
+      "bias": -3.9090761986678126
+    },
+    {
+      "model": "boosting-weather-locations",
+      "horizon": "0-48h",
+      "n": 672,
+      "mae": 24.969403751581588,
+      "rmse": 31.857390493793158,
+      "bias": -3.9319668935187093
+    },
+    {
+      "model": "ours-v2",
+      "horizon": "0-6h",
+      "n": 84,
+      "mae": 14.6139592184071,
+      "rmse": 19.035190074553057,
+      "bias": 0.8851242587492695
+    },
+    {
+      "model": "ours-v2",
+      "horizon": "6-24h",
+      "n": 252,
+      "mae": 34.046902004978996,
+      "rmse": 41.275467727414394,
+      "bias": -20.008927213366963
+    },
+    {
+      "model": "ours-v2",
+      "horizon": "24-48h",
+      "n": 336,
+      "mae": 27.78505830828107,
+      "rmse": 35.91531425141543,
+      "bias": -7.547098033857462
+    },
+    {
+      "model": "ours-v2",
+      "horizon": "0-48h",
+      "n": 672,
+      "mae": 28.48686230830854,
+      "rmse": 36.45711583600063,
+      "bias": -11.166256189597684
+    },
+    {
+      "model": "persistence",
+      "horizon": "0-6h",
+      "n": 84,
+      "mae": 29.071428571428573,
+      "rmse": 38.422773504908825,
+      "bias": 19.80952380952381
+    },
+    {
+      "model": "persistence",
+      "horizon": "6-24h",
+      "n": 252,
+      "mae": 51.6031746031746,
+      "rmse": 63.17367092715681,
+      "bias": 7.76984126984127
+    },
+    {
+      "model": "persistence",
+      "horizon": "24-48h",
+      "n": 336,
+      "mae": 58.92261904761905,
+      "rmse": 70.6709342826381,
+      "bias": 17.416666666666668
+    },
+    {
+      "model": "persistence",
+      "horizon": "0-48h",
+      "n": 672,
+      "mae": 52.44642857142857,
+      "rmse": 64.63993679275552,
+      "bias": 14.098214285714286
+    },
+    {
+      "model": "ridge-calendar",
+      "horizon": "0-6h",
+      "n": 84,
+      "mae": 31.61001414272824,
+      "rmse": 38.0842469298794,
+      "bias": -1.6023656649243647
+    },
+    {
+      "model": "ridge-calendar",
+      "horizon": "6-24h",
+      "n": 252,
+      "mae": 34.04335421923027,
+      "rmse": 38.97569817228572,
+      "bias": 2.0340883944739496
+    },
+    {
+      "model": "ridge-calendar",
+      "horizon": "24-48h",
+      "n": 336,
+      "mae": 39.82611647348476,
+      "rmse": 45.00306562686361,
+      "bias": 8.147191074964342
+    },
+    {
+      "model": "ridge-calendar",
+      "horizon": "0-48h",
+      "n": 672,
+      "mae": 36.63056783679476,
+      "rmse": 41.99528049604287,
+      "bias": 4.6360829772943575
+    },
+    {
+      "model": "ridge-full",
+      "horizon": "0-6h",
+      "n": 84,
+      "mae": 21.60013917858885,
+      "rmse": 26.912686574578892,
+      "bias": 3.974062539472387
+    },
+    {
+      "model": "ridge-full",
+      "horizon": "6-24h",
+      "n": 252,
+      "mae": 36.215987707864805,
+      "rmse": 43.539450786549445,
+      "bias": -18.886456821737067
+    },
+    {
+      "model": "ridge-full",
+      "horizon": "24-48h",
+      "n": 336,
+      "mae": 30.311929054163155,
+      "rmse": 37.3629579703436,
+      "bias": -4.578735584942877
+    },
+    {
+      "model": "ridge-full",
+      "horizon": "0-48h",
+      "n": 672,
+      "mae": 31.436977314854488,
+      "rmse": 38.722258676727606,
+      "bias": -8.87503128318879
+    },
+    {
+      "model": "ridge-lags",
+      "horizon": "0-6h",
+      "n": 84,
+      "mae": 22.833759015570404,
+      "rmse": 28.96556488606488,
+      "bias": -13.359748261896213
+    },
+    {
+      "model": "ridge-lags",
+      "horizon": "6-24h",
+      "n": 252,
+      "mae": 28.88559318890394,
+      "rmse": 35.15856559377271,
+      "bias": -5.168272494685854
+    },
+    {
+      "model": "ridge-lags",
+      "horizon": "24-48h",
+      "n": 336,
+      "mae": 33.20894688967813,
+      "rmse": 39.04649088417747,
+      "bias": 3.4029936968343852
+    },
+    {
+      "model": "ridge-lags",
+      "horizon": "0-48h",
+      "n": 672,
+      "mae": 30.290790767624344,
+      "rmse": 36.479261153558724,
+      "bias": -1.9065738698270287
+    },
+    {
+      "model": "seasonal-daily",
+      "horizon": "0-6h",
+      "n": 84,
+      "mae": 29.738095238095237,
+      "rmse": 35.02991918482311,
+      "bias": -21.61904761904762
+    },
+    {
+      "model": "seasonal-daily",
+      "horizon": "6-24h",
+      "n": 252,
+      "mae": 39.87301587301587,
+      "rmse": 48.723222193861325,
+      "bias": -9.53968253968254
+    },
+    {
+      "model": "seasonal-daily",
+      "horizon": "24-48h",
+      "n": 336,
+      "mae": 39.107142857142854,
+      "rmse": 48.731589930381475,
+      "bias": -5.9226190476190474
+    },
+    {
+      "model": "seasonal-daily",
+      "horizon": "0-48h",
+      "n": 672,
+      "mae": 38.223214285714285,
+      "rmse": 47.23349421957342,
+      "bias": -9.241071428571429
+    },
+    {
+      "model": "seasonal-weekly",
+      "horizon": "0-6h",
+      "n": 84,
+      "mae": 38.583333333333336,
+      "rmse": 47.4854614342016,
+      "bias": -11.25
+    },
+    {
+      "model": "seasonal-weekly",
+      "horizon": "6-24h",
+      "n": 252,
+      "mae": 35.198412698412696,
+      "rmse": 43.03127323459621,
+      "bias": -0.5
+    },
+    {
+      "model": "seasonal-weekly",
+      "horizon": "24-48h",
+      "n": 336,
+      "mae": 36.288690476190474,
+      "rmse": 48.84368287857558,
+      "bias": 9.87202380952381
+    },
+    {
+      "model": "seasonal-weekly",
+      "horizon": "0-48h",
+      "n": 672,
+      "mae": 36.166666666666664,
+      "rmse": 46.57354654839202,
+      "bias": 3.3422619047619047
+    }
+  ],
+  "final": [
+    {
+      "model": "boosting-weather-blend",
+      "horizon": "0-6h",
+      "n": 12,
+      "mae": 4.085371673615552,
+      "rmse": 5.045612391744885,
+      "bias": -2.132261037728341
+    },
+    {
+      "model": "boosting-weather-blend",
+      "horizon": "6-24h",
+      "n": 36,
+      "mae": 27.231778523745742,
+      "rmse": 35.27722959792513,
+      "bias": 24.39849517162436
+    },
+    {
+      "model": "boosting-weather-blend",
+      "horizon": "24-48h",
+      "n": 48,
+      "mae": 30.22196536809551,
+      "rmse": 36.515273235091186,
+      "bias": 15.528009798012391
+    },
+    {
+      "model": "boosting-weather-blend",
+      "horizon": "0-48h",
+      "n": 96,
+      "mae": 25.833571089654352,
+      "rmse": 33.71269736029618,
+      "bias": 16.646907958649287
+    },
+    {
+      "model": "ours-v2",
+      "horizon": "0-6h",
+      "n": 12,
+      "mae": 4.285572738262368,
+      "rmse": 5.454045422000627,
+      "bias": 0.8735521967045402
+    },
+    {
+      "model": "ours-v2",
+      "horizon": "6-24h",
+      "n": 36,
+      "mae": 14.298290060452546,
+      "rmse": 21.092305908750923,
+      "bias": 8.914799298880403
+    },
+    {
+      "model": "ours-v2",
+      "horizon": "24-48h",
+      "n": 48,
+      "mae": 28.28204566465781,
+      "rmse": 33.26254199955884,
+      "bias": 26.480929613894503
+    },
+    {
+      "model": "ours-v2",
+      "horizon": "0-48h",
+      "n": 96,
+      "mae": 20.038578197281407,
+      "rmse": 26.90257775334897,
+      "bias": 16.692708568615473
+    },
+    {
+      "model": "persistence",
+      "horizon": "0-6h",
+      "n": 12,
+      "mae": 8.5,
+      "rmse": 11.105554165971787,
+      "bias": 7.833333333333333
+    },
+    {
+      "model": "persistence",
+      "horizon": "6-24h",
+      "n": 36,
+      "mae": 33.888888888888886,
+      "rmse": 45.149750829877235,
+      "bias": -25.77777777777778
+    },
+    {
+      "model": "persistence",
+      "horizon": "24-48h",
+      "n": 48,
+      "mae": 22.104166666666668,
+      "rmse": 28.950028785247635,
+      "bias": -1.8541666666666667
+    },
+    {
+      "model": "persistence",
+      "horizon": "0-48h",
+      "n": 96,
+      "mae": 24.822916666666668,
+      "rmse": 34.6252256310338,
+      "bias": -9.614583333333334
+    },
+    {
+      "model": "seasonal-daily",
+      "horizon": "0-6h",
+      "n": 12,
+      "mae": 25.75,
+      "rmse": 32.955778451332826,
+      "bias": 25.75
+    },
+    {
+      "model": "seasonal-daily",
+      "horizon": "6-24h",
+      "n": 36,
+      "mae": 25.444444444444443,
+      "rmse": 33.22064284614479,
+      "bias": -20.77777777777778
+    },
+    {
+      "model": "seasonal-daily",
+      "horizon": "24-48h",
+      "n": 48,
+      "mae": 20.083333333333332,
+      "rmse": 24.115175028737955,
+      "bias": 6.375
+    },
+    {
+      "model": "seasonal-daily",
+      "horizon": "0-48h",
+      "n": 96,
+      "mae": 22.802083333333332,
+      "rmse": 28.98940179904833,
+      "bias": -1.3854166666666667
+    },
+    {
+      "model": "seasonal-weekly",
+      "horizon": "0-6h",
+      "n": 12,
+      "mae": 42,
+      "rmse": 47.914855038216835,
+      "bias": 42
+    },
+    {
+      "model": "seasonal-weekly",
+      "horizon": "6-24h",
+      "n": 36,
+      "mae": 38.75,
+      "rmse": 46.05582361535714,
+      "bias": 37.19444444444444
+    },
+    {
+      "model": "seasonal-weekly",
+      "horizon": "24-48h",
+      "n": 48,
+      "mae": 35.791666666666664,
+      "rmse": 38.91925401820201,
+      "bias": 35.625
+    },
+    {
+      "model": "seasonal-weekly",
+      "horizon": "0-48h",
+      "n": 96,
+      "mae": 37.677083333333336,
+      "rmse": 42.892428430512844,
+      "bias": 37.010416666666664
+    }
+  ],
+  "promotion": "Not promoted; live model unchanged.",
+  "final_improvement_pct": -28.919181966508685
+}
