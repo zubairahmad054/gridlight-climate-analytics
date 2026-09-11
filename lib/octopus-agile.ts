@@ -54,6 +54,7 @@ export async function fetchAgilePrices(hoursBack = 24, hoursForward = 48): Promi
 
   const res = await fetch(url, {
     headers: { Accept: "application/json" },
+    signal: AbortSignal.timeout(15000),
     next: { revalidate: 900 },
   })
   if (!res.ok) {

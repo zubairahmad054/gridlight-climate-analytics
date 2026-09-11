@@ -1,22 +1,47 @@
-name: Hourly ingest
+name: Hourly ingest and analytics
 
-# Keeps the database fresh: pulls the latest actuals, NESO forecast and
-# generation mix by calling the deployed /api/ingest endpoint.
 on:
   schedule:
-    - cron: "5 * * * *" # every hour at :05 UTC
+    - cron: "5 * * * *"
   workflow_dispatch: {}
+
+permissions:
+  contents: read
+
+# Both jobs share a database. Do not interrupt a running training/ingest transaction.
+concurrency:
+  group: gridlight-production-pipeline
+  cancel-in-progress: false
+
+env:
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
 
 jobs:
   ingest:
     if: ${{ vars.ENABLE_PRODUCTION_WRITES == 'true' }}
     runs-on: ubuntu-latest
+    timeout-minutes: 15
+    env:
+      DATABASE_URL: ${{ secrets.DATABASE_URL }}
+      APP_URL: ${{ secrets.APP_URL }}
+      INGEST_TOKEN: ${{ secrets.INGEST_TOKEN }}
+      VERCEL_AUTOMATION_BYPASS_SECRET: ${{ secrets.VERCEL_AUTOMATION_BYPASS_SECRET }}
     steps:
-      - name: Trigger ingest
-        run: |
-          curl -fsS -X POST "$APP_URL/api/ingest" \
-            -H "Authorization: Bearer $INGEST_TOKEN" \
-            -w "\nHTTP %{http_code}\n"
-        env:
-          APP_URL: ${{ secrets.APP_URL }}
-          INGEST_TOKEN: ${{ secrets.INGEST_TOKEN }}
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+          cache-dependency-path: scripts/requirements.txt
+      - run: pip install -r scripts/requirements.txt
+      - name: Verify database schema before any writes
+        run: python scripts/check_pipeline.py
+      - name: Capture current data and an official forecast
+        run: node scripts/ingest.mjs
+      - name: Refresh descriptive dashboard analytics
+        run: python scripts/refresh_dashboard.py --publish
+      - name: Verify data freshness after publication
+        run: node scripts/check_health.mjs

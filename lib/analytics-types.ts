@@ -4,6 +4,9 @@ export interface AnalyticsReport {
   schema_version: number
   generated_at: string
   source: string
+  delivery?: "database" | "bundled"
+  update_warning?: string | null
+  benchmark_generated_at?: string
   timezone: string
   patterns: {
     quality: { rows: number; start: string; end: string; expected_rows: number; missing_half_hours: number }

@@ -10,7 +10,7 @@ import { getIntensityIndex } from "@/lib/types"
 const NESO_FORECAST_VERSION = "neso-fw48h"
 
 export const dynamic = "force-dynamic"
-export const maxDuration = 30 // ingest fans out to several upstream calls + DB writes
+export const maxDuration = 60 // small HTTP/DB batches only; training runs in Actions
 
 interface BlockStats {
   total: number
@@ -19,9 +19,10 @@ interface BlockStats {
 }
 
 export async function POST(req: Request) {
-  // When INGEST_TOKEN is set (production), require it. Unset (local dev) = open.
+  // Fail closed in every environment: a missing secret must never open DB writes.
   const token = process.env.INGEST_TOKEN
-  if (token && req.headers.get("authorization") !== `Bearer ${token}`) {
+  if (!token) return NextResponse.json({ error: "Ingestion is not configured" }, { status: 503 })
+  if (req.headers.get("authorization") !== `Bearer ${token}`) {
     return NextResponse.json({ error: "unauthorized" }, { status: 401 })
   }
 
@@ -82,7 +83,7 @@ export async function POST(req: Request) {
     ])
 
     return NextResponse.json({
-      success: true,
+      success: [forecastStats, genStats, priceStats].every(channel => channel.total > 0),
       observations: {
         total: observations.length,
         inserted: obsInserted,

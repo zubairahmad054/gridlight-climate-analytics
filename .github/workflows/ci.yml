@@ -27,6 +27,8 @@ jobs:
       - run: pnpm test:db
       - run: node --test tests/author-policy.test.mjs
       - run: node --test tests/schedule-ui-safety.test.mjs
+      - run: node --test tests/pipeline.test.mjs
+      - run: pnpm build
 
   python:
     runs-on: ubuntu-latest

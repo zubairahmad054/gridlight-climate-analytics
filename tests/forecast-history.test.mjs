@@ -6,6 +6,15 @@ import { PGlite } from "@electric-sql/pglite"
 
 const migrationDir = new URL("../db/migrations/", import.meta.url)
 
+test("dashboard summary storage is additive and rejects unsupported schemas", async () => {
+  const db = await database()
+  try {
+    await db.query("INSERT INTO dashboard_reports VALUES ('analytics', now(), $1::jsonb)", [JSON.stringify({ schema_version: 1 })])
+    assert.equal((await db.query("SELECT payload FROM dashboard_reports")).rows[0].payload.schema_version, 1)
+    await assert.rejects(db.query("INSERT INTO dashboard_reports VALUES ('invalid', now(), $1::jsonb)", [JSON.stringify({ schema_version: 2 })]))
+  } finally { await db.close() }
+})
+
 async function database() {
   const db = new PGlite()
   for (const name of readdirSync(migrationDir).filter((n) => n.endsWith(".sql")).sort()) {

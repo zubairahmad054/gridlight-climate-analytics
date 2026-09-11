@@ -1,14 +1,18 @@
 name: Daily retrain
 
-# Refreshes our model and its 48h forecast so it never goes stale.
-# Runs the Python pipeline directly against Neon (no web tier involved).
 on:
   schedule:
-    - cron: "30 3 * * *" # 03:30 UTC daily
+    - cron: "30 3 * * *"
   workflow_dispatch: {}
 
-# GitHub forces actions onto Node 24 from 2026-06-16; opt in early so the
-# switch is verified green here rather than breaking the nightly retrain.
+permissions:
+  contents: read
+
+# Both jobs share a database. Do not interrupt a running training/ingest transaction.
+concurrency:
+  group: gridlight-production-pipeline
+  cancel-in-progress: false
+
 env:
   FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
 
@@ -16,27 +20,43 @@ jobs:
   train:
     if: ${{ vars.ENABLE_PRODUCTION_WRITES == 'true' }}
     runs-on: ubuntu-latest
+    timeout-minutes: 90
+    env:
+      DATABASE_URL: ${{ secrets.DATABASE_URL }}
+      APP_URL: ${{ secrets.APP_URL }}
+      INGEST_TOKEN: ${{ secrets.INGEST_TOKEN }}
+      VERCEL_AUTOMATION_BYPASS_SECRET: ${{ secrets.VERCEL_AUTOMATION_BYPASS_SECRET }}
     steps:
       - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
       - uses: actions/setup-python@v5
         with:
           python-version: "3.12"
-          cache: "pip"
+          cache: pip
+          cache-dependency-path: scripts/requirements.txt
       - run: pip install -r scripts/requirements.txt
-      # Patch any recent ingest gaps, then retrain + write a fresh forecast.
-      - run: python scripts/backfill.py 7
-        env:
-          DATABASE_URL: ${{ secrets.DATABASE_URL }}
-      - run: python scripts/train.py --publish
-        env:
-          DATABASE_URL: ${{ secrets.DATABASE_URL }}
-      # Derive marginal intensity (historical + forward) now the fresh forecast exists.
-      - run: python scripts/marginal.py
-        env:
-          DATABASE_URL: ${{ secrets.DATABASE_URL }}
+      - name: Verify database schema before any writes
+        run: python scripts/check_pipeline.py
+      - name: Capture current data and an official forecast
+        # A tariff outage must not stop model training; final health check still fails.
+        continue-on-error: true
+        run: node scripts/ingest.mjs
+      - name: Repair recent observation gaps
+        run: python scripts/backfill.py 7
+      - name: Train and publish the existing reference model
+        run: python scripts/train.py --publish
+      - name: Update rule-based marginal estimates
+        run: python scripts/marginal.py
+      - name: Refresh descriptive dashboard analytics
+        run: python scripts/refresh_dashboard.py --publish
+      - name: Verify data freshness after publication
+        run: node scripts/check_health.mjs
       - uses: actions/upload-artifact@v4
         if: always()
         with:
           name: forecast-run-${{ github.run_id }}-${{ github.run_attempt }}
           path: artifacts/runs/
           retention-days: 90
+          if-no-files-found: warn

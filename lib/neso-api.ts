@@ -43,6 +43,7 @@ function toApiTime(d: Date): string {
 async function getJson<T>(path: string, revalidate = 300): Promise<T> {
   const res = await fetch(`${BASE}${path}`, {
     headers: { Accept: "application/json" },
+    signal: AbortSignal.timeout(15000),
     next: { revalidate },
   })
   if (!res.ok) {

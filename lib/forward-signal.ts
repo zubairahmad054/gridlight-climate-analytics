@@ -53,6 +53,7 @@ export async function loadForwardSignal(hours = 48): Promise<ForwardSignal> {
       ON p.timestamp = f.target_time
      AND p.created_at > now() - ${PRICE_MAX_AGE}::interval
     WHERE f.target_time >= ${now.toISOString()}
+      AND f.created_at > now() - interval '30 hours'
       AND f.target_time <= ${limit.toISOString()}
     ORDER BY f.target_time ASC
   `
