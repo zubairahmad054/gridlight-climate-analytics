@@ -45,6 +45,8 @@ jobs:
         run: node scripts/ingest.mjs
       - name: Repair recent observation gaps
         run: python scripts/backfill.py 7
+      - name: Verify settled observations with bounded ingestion retries
+        run: python scripts/check_observations.py
       - name: Train and publish the existing reference model
         run: python scripts/train.py --publish
       - name: Update rule-based marginal estimates

@@ -35,5 +35,23 @@ test('complete ingestion succeeds and never follows credential-bearing redirects
   assert.equal(options.redirect, 'error')
 })
 test('health checker fails an unhealthy deployment', async () => {
-  await assert.rejects(runScript('check_health.mjs', {}, { ok: false, status: 503 }), /freshness check failed/)
+  await assert.rejects(runScript('check_health.mjs', {}, { ok: false, status: 503, json: async () => ({ status: 'unavailable' }) }), /freshness check failed/)
+})
+
+test('health checker identifies stale channels without echoing server content', async () => {
+  await assert.rejects(runScript('check_health.mjs', {}, {
+    ok: false, status: 503,
+    json: async () => ({ status: 'degraded', message: 'private-server-content', checks: {
+      model: { fresh: false }, training_history: { fresh: false }, observations: { fresh: true },
+      'private-server-content': { fresh: false },
+    } }),
+  }), error => {
+    assert.match(error.message, /Stale channels: model, training_history/)
+    assert.doesNotMatch(error.message, /private-server-content/)
+    return true
+  })
+})
+
+test('health checker accepts healthy data', async () => {
+  await runScript('check_health.mjs', {}, { ok: true, status: 200, json: async () => ({ status: 'healthy' }) })
 })
