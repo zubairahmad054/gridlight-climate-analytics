@@ -78,7 +78,9 @@ def main() -> int:
     now = pd.Timestamp.now(tz="UTC")
     history_weather = W.fetch_archive(intensity.index.min().strftime("%Y-%m-%d"),
                                      (now - pd.Timedelta(days=7)).strftime("%Y-%m-%d"))
-    forecast_weather, provenance = W.archived_forecast(now, Path("artifacts/weather-cache"))
+    forecast_weather, provenance = W.archived_forecast(now, Path("artifacts/weather-cache"), previous_runs=2)
+    # Weather requests can take minutes; use observations available after retrieval.
+    intensity = read_intensity()
     origin = pd.Timestamp.now(tz="UTC")
     result = forecast_at(intensity, history_weather, forecast_weather, origin)
     run_id = str(uuid4())

@@ -21,6 +21,31 @@ VARS = "wind_speed_100m,shortwave_radiation,temperature_2m"
 
 def archived_forecast(origin: pd.Timestamp, cache_dir: Path,
                       model: str = "gfs_global", delay_hours: int = 8,
+                      *, latitude: float = LAT, longitude: float = LON,
+                      previous_runs: int = 0) -> tuple[pd.DataFrame, dict]:
+    """Read an eligible archived run; live training may try older missing-run vintages.
+
+    Research callers keep exact-run selection by default. Every fallback still
+    predates origin and records the actual vintage; no realised weather is used.
+    """
+    if previous_runs not in (0, 1, 2):
+        raise ValueError("previous_runs must be between zero and two")
+    for offset in range(previous_runs + 1):
+        try:
+            frame, metadata = _archived_run(
+                origin - pd.Timedelta(hours=6 * offset), cache_dir, model, delay_hours,
+                latitude=latitude, longitude=longitude)
+            metadata["previous_runs_used"] = offset
+            return frame, metadata
+        except httpx.HTTPStatusError as error:
+            if error.response.status_code not in (400, 404) or offset == previous_runs:
+                raise
+            print("Archived weather run unavailable; trying the preceding eligible six-hour run")
+    raise RuntimeError("No eligible archived weather run")
+
+
+def _archived_run(origin: pd.Timestamp, cache_dir: Path,
+                      model: str = "gfs_global", delay_hours: int = 8,
                       *, latitude: float = LAT, longitude: float = LON) -> tuple[pd.DataFrame, dict]:
     """Specific archived run, with explicit assumed publication delay.
 
@@ -77,6 +102,8 @@ def _get_json(url: str, attempts: int = 4, timeout: float = 60.0) -> dict:
                 r.raise_for_status()
                 return r.json()
         except httpx.HTTPError as e:  # covers connect/SSL/timeout/status errors
+            if isinstance(e, httpx.HTTPStatusError) and 400 <= e.response.status_code < 500 and e.response.status_code != 429:
+                raise  # Missing runs need another vintage, not repeated identical requests.
             last = e
             if i < attempts - 1:
                 wait = 2**i  # 1s, 2s, 4s
